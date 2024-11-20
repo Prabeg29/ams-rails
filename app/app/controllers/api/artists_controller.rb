@@ -2,12 +2,11 @@ module Api
   class ArtistsController < ApplicationController
     include PaginationHelper
 
-    before_action :validate_role, only: [:create, :update]
     before_action :set_artist, only: [:show, :update, :destroy]
 
     def create
       ActiveRecord::Base.transaction do
-        user = User.create!(user_params)
+        user = User.create!(user_params.merge(role: "artist"))
         artist = Artist.create!(artist_params.merge(user_id: user.id))
 
         render json: { 
@@ -28,34 +27,27 @@ module Api
 
       genderFilters = ["male", "female", "other"]
 
-      usersWithArtistsQuery = User.where(role: :artist).includes(:artist)
+      artistsWithUsersQuery = Artist.joins(:user)
 
       if params[:search].present?
-        usersWithArtistsQuery = usersWithArtistsQuery.where("users.email LIKE ? OR CONCAT(users.first_name, ' ', users.last_name) LIKE ?", "%#{params[:search]}%", "%#{params[:search]}%")
+        artistsWithUsersQuery = artistsWithUsersQuery.where("users.email LIKE ? OR CONCAT(users.first_name, ' ', users.last_name) LIKE ?", "%#{params[:search]}%", "%#{params[:search]}%")
       end
 
       if params[:gender].present? && genderFilters.include?(params[:gender])
-        usersWithArtistsQuery = usersWithArtistsQuery.where(gender: params[:gender])
+        artistsWithUsersQuery = artistsWithUsersQuery.where(gender: params[:gender])
       end
 
       data, paginationInfo = paginate(
-        usersWithArtistsQuery,
+        artistsWithUsersQuery,
         currentPage: currentPage,
         perPage: perPage,
-        selectParams: 'id, first_name, last_name, email, phone, dob, gender, role, address'
+        selectParams: 'artists.id, artists.first_release_year, artists.user_id, artists.no_of_albums_released, users.first_name, users.last_name, users.email, users.phone, users.dob, users.gender, users.address'
       ).values_at(:data, :paginationInfo)
 
-      artists = data.map do |user|
-        user.attributes.merge(
-          first_release_year: user.artist.first_release_year,
-          no_of_albums_released: user.artist.no_of_albums_released
-        )
-      end
-      
       render json: { 
         success: true,
         message: "Artists fetched successfully",
-        data: artists,
+        data: data,
         paginationInfo: paginationInfo
       }
     end
@@ -64,24 +56,16 @@ module Api
       render json: {
         success: true,
         message: "Artist fetched successfully",
-        data: @user.attributes.merge(
-          first_release_year: @user.artist.first_release_year,
-          no_of_albums_released: @user.artist.no_of_albums_released
-        )
+        data: @artist
       }
     end
 
     def update
       ActiveRecord::Base.transaction do
-        @user.update!(user_params)
-        @user.artist.update!(artist_params)
+        @artist.update!(artist_params)
+        @artist.user.update!(user_params.merge(role: "artist"))
 
-        userAsArtist = @user.attributes.merge(
-          first_release_year: @user.artist.first_release_year,
-          no_of_albums_released: @user.artist.no_of_albums_released
-        )
-
-        render json: { success: true, message: "Artist updated successfully", data: userAsArtist }
+        render json: { success: true, message: "Artist updated successfully", data: @artist }
       end
     rescue ActiveRecord::RecordInvalid => e
       render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
@@ -102,9 +86,8 @@ module Api
           :phone,
           :dob,
           :gender,
-          :address,
-          :role
-        )
+          :address
+        ).reverse_merge(role: "artist")
       end
 
       def artist_params
@@ -114,18 +97,14 @@ module Api
         )
       end
 
-      def validate_role
-        if user_params[:role] != "artist"
-          render json: { message: "role must be 'artist'" }, status: :unprocessable_entity
-        end
-      end
-
       def set_artist
-        @user = User.joins(:artist).find_by(users: { id: params[:id], role: "artist" })
-        @artist = @user&.artist
-  
-        unless @user
-          render json: { success: false, message: "Artist with given id does not exist" }, status: :bad_request
+        @artist = Artist.joins(:user)
+          .select("artists.id, artists.first_release_year, artists.user_id, artists.no_of_albums_released, users.first_name, users.last_name, users.email, users.phone, users.dob, users.gender, users.address")
+          .find_by(artists: { id: params[:id] })
+
+        unless @artist
+          render json: { success: false, message: "Artist with given id does not exist" }, status: :not_found
+          return
         end
       end
   end
