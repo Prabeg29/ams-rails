@@ -10,7 +10,16 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_11_18_093749) do
+ActiveRecord::Schema[7.0].define(version: 2024_11_19_015829) do
+  create_table "artists", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.integer "first_release_year", limit: 2
+    t.integer "no_of_albums_released", limit: 1
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_artists_on_user_id"
+  end
+
   create_table "groups", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
     t.string "name"
     t.datetime "created_at", null: false
@@ -33,4 +42,5 @@ ActiveRecord::Schema[7.0].define(version: 2024_11_18_093749) do
     t.index ["email"], name: "unique_emails", unique: true
   end
 
+  add_foreign_key "artists", "users"
 end
