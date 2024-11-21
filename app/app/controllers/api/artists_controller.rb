@@ -1,7 +1,5 @@
 module Api
   class ArtistsController < ApplicationController
-    include PaginationHelper
-
     before_action :set_artist, only: [:show, :update, :destroy]
 
     def create
@@ -27,21 +25,21 @@ module Api
 
       genderFilters = ["male", "female", "other"]
 
-      artistsWithUsersQuery = Artist.joins(:user)
+      usersWithArtistsQuery = User.joins(:artist)
 
       if params[:search].present?
-        artistsWithUsersQuery = artistsWithUsersQuery.where("users.email LIKE ? OR CONCAT(users.first_name, ' ', users.last_name) LIKE ?", "%#{params[:search]}%", "%#{params[:search]}%")
+        usersWithArtistsQuery = usersWithArtistsQuery.where("users.email LIKE ? OR CONCAT(users.first_name, " ", users.last_name) LIKE ?", "%#{params[:search]}%", "%#{params[:search]}%")
       end
 
       if params[:gender].present? && genderFilters.include?(params[:gender])
-        artistsWithUsersQuery = artistsWithUsersQuery.where(gender: params[:gender])
+        usersWithArtistsQuery = usersWithArtistsQuery.where(gender: params[:gender])
       end
 
       data, paginationInfo = paginate(
-        artistsWithUsersQuery,
+        usersWithArtistsQuery,
         currentPage: currentPage,
         perPage: perPage,
-        selectParams: 'artists.id, artists.first_release_year, artists.user_id, artists.no_of_albums_released, users.first_name, users.last_name, users.email, users.phone, users.dob, users.gender, users.address'
+        selectParams: "users.id, users.first_name, users.last_name, users.email, users.phone, users.dob, users.gender, users.address, artists.first_release_year, artists.no_of_albums_released"
       ).values_at(:data, :paginationInfo)
 
       render json: { 
@@ -53,17 +51,13 @@ module Api
     end
 
     def show
-      render json: {
-        success: true,
-        message: "Artist fetched successfully",
-        data: @artist
-      }
+      render json: { success: true, message: "Artist fetched successfully", data: @artist }
     end
 
     def update
       ActiveRecord::Base.transaction do
-        @artist.update!(artist_params)
-        @artist.user.update!(user_params.merge(role: "artist"))
+        @artist.update!(user_params.merge(role: "artist"))
+        @artist.artist.update!(artist_params)
 
         render json: { success: true, message: "Artist updated successfully", data: @artist }
       end
@@ -98,10 +92,10 @@ module Api
       end
 
       def set_artist
-        @artist = Artist.joins(:user)
-          .select("artists.id, artists.first_release_year, artists.user_id, artists.no_of_albums_released, users.first_name, users.last_name, users.email, users.phone, users.dob, users.gender, users.address")
-          .find_by(artists: { id: params[:id] })
-
+        @artist = User.joins(:artist)
+          .select("users.id, users.first_name, users.last_name, users.email, users.phone, users.dob, users.gender, users.address, artists.first_release_year, artists.no_of_albums_released")
+          .find_by(users: { id: params[:id], role: "artist" })
+        
         unless @artist
           render json: { success: false, message: "Artist with given id does not exist" }, status: :not_found
           return

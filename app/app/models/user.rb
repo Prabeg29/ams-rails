@@ -17,12 +17,12 @@ class User < ApplicationRecord
 
   validates :first_name, :last_name, :email, :password, presence: true
   validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }, uniqueness: { on: :create }
-  validates :password, length: { minimum: 6 }
+  validates :password, length: { minimum: 6 }, if: -> { password.present? }
   validates :phone, length: { maximum: 20 }, allow_nil: true
   validates :gender, inclusion: { in: genders.keys, message: "must be one of: #{genders.keys.join(", ")}" }, allow_nil: false
   validates :role, inclusion: { in: roles.keys.reject { |role| role == "super_admin" }, message: "must be one of: #{roles.keys.reject { |role| role == "super_admin" }.join(", ")}" }, allow_nil: false
 
   def as_json(options = {})
-    super(options.merge({ except: [:password, :password_digest] }))
+    super(options.merge({ except: [:password, :password_digest, :created_at, :updated_at] }))
   end
 end

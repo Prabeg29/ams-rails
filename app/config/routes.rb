@@ -7,9 +7,12 @@ Rails.application.routes.draw do
     # root "articles#index"
     post "/auth/register", to: "auth#register"
     post "/auth/login", to: "auth#login"
-    post "/auth/renew-access-token", to "auth#generateAccessToken"
-    post "/auth/logout", to "auth#logout"
+    post "/auth/renew-access-token", to: "auth#generateAccessToken"
+    post "/auth/logout", to: "auth#logout"
     resources :users
     resources :artists
+    resources :artists do
+      resources :songs
+    end
   end
 end

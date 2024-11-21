@@ -1,5 +1,6 @@
 class ApplicationController < ActionController::API
   include ActionController::Cookies
+  include PaginationHelper
 
   SECRET = "super-secret-la"
 
@@ -14,17 +15,18 @@ class ApplicationController < ActionController::API
     
     if request.headers["Authorization"] && !request.headers["Authorization"].split(" ")[1].empty?
       token = request.headers["Authorization"].split(" ")[1]
-    elsif
+    elsif cookies[:accessToken]
       token = cookies[:accessToken].split(" ")[1]
     else
       render json: { success: false, message: "Token not provided" }, status: :unauthorized
+      return
     end
   
     begin
-      decodedToken = JWT.decode(token, SECRET)
-      @user = User.find_by(id: decodedToken["userId"])
+      decodedToken = JWT.decode(token, SECRET)[0]
+      @authenticatedUser = User.find_by(id: decodedToken["userId"])
 
-      unless !!@user
+      unless !!@authenticatedUser
         render json: { success: false, message: "Invalid token" }, status: :unauthorized
       end
     rescue JWT::ExpiredSignature
