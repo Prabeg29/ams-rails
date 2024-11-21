@@ -1,5 +1,5 @@
 class Api::AuthController < ApplicationController
-  ACCESS_TOKEN_EXPIRY = 15.minutes.from_now
+  ACCESS_TOKEN_EXPIRY = 1.day.from_now
   REFRESH_TOKEN_EXPIRY = 7.days.from_now
 
   skip_before_action :authenticate, only: [:register, :login, :generateAccessToken]
@@ -83,7 +83,6 @@ class Api::AuthController < ApplicationController
 
     render json: { success: true, message: "Logged out successfully" }, status: :ok
   end
-  end
 
   private
     def registrationParams
@@ -119,4 +118,3 @@ class Api::AuthController < ApplicationController
       }
     end
 end
-
