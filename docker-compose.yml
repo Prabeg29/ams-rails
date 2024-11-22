@@ -22,6 +22,7 @@ services:
       - .env
     volumes:
       - ./app:/opt/app
+      - ./tmp:/opt/app/tmp
     ports:
       - "${WEB_PORT}:3000"
     depends_on:

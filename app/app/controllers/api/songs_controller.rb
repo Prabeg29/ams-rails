@@ -3,9 +3,9 @@ class Api::SongsController < ApplicationController
   before_action :setSong, only: %i[show update destroy]
 
   def create
-    @song = Song.new(songParams.merge(artist_id: @authenticatedUser.artist.id))
+    song = Song.new(songParams.merge(artist_id: @authenticatedUser.artist.id))
 
-    if !@song.save
+    if !song.save
       render json: { success: false, message: @song.errors }, status: :unprocessable_entity
       return 
     end
@@ -15,11 +15,17 @@ class Api::SongsController < ApplicationController
 
   def index
     currentPage = params.fetch(:page, 1)
-    perPage = params.fetch(:perPage, 2)
+    perPage = params.fetch(:perPage, 5)
 
     genreFilters = ["rnb", "country", "classic", "rock", "jazz"]
 
     songsQuery = Song
+
+    if @authenticatedUser.role == "artist"
+      songsQuery = songsQuery.where(artist_id: @authenticatedUser.artist.id)
+    else
+      songsQuery = songsQuery.where(artist_id: Artist.where(user_id: params[:artist_id]).pluck(:id))
+    end
 
     if params[:search].present?
       songsQuery = songsQuery.where("songs.title LIKE ? OR songs.album_name LIKE ?", "%#{params[:search]}%", "%#{params[:search]}%")
@@ -57,13 +63,18 @@ class Api::SongsController < ApplicationController
 
   private
     def validateArtist
-      unless params[:artist_id].to_i == @authenticatedUser.id
-        render json: { success: false, message: "Resource belongs to a different user" }, status: :forbidden
+      if @authenticatedUser.role == "artist" && params[:artist_id].to_i != @authenticatedUser.id 
+        render json: { success: false, message: "You do not own the resource" }, status: :forbidden
       end
     end
 
     def setSong
-      @song = Song.where(artist_id: @authenticatedUser.artist.id).find_by(id: params[:id])
+      if @authenticatedUser.role == "artist"
+        @song = Song.where(artist_id: @authenticatedUser.artist.id).find_by(id: params[:id])
+      else
+        @song = Song.where(artist_id: params[:artist_id]).find_by(id: params[:id])
+      end
+
       unless @song
         render json: { success: false, message: "Song with given id does not exist" }, status: :not_found
       end

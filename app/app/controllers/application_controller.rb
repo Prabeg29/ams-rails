@@ -5,6 +5,7 @@ class ApplicationController < ActionController::API
   SECRET = "super-secret-la"
 
   before_action :authenticate
+  before_action :authorize, only: [:index, :create, :show, :update, :destroy, :csvExport, :csvImport]
 
   def encode(payload)
     JWT.encode(payload, SECRET)
@@ -31,6 +32,26 @@ class ApplicationController < ActionController::API
       end
     rescue JWT::ExpiredSignature
       render json: { success: false, message: "Token expired" }, status: :unauthorized
+    end
+  end
+
+  def authorize
+    resource = controller_name.singularize
+    action = action_name.to_s
+
+    actionMap = {
+      "index"     => :read,
+      "show"      => :read,
+      "create"    => :create,
+      "update"    => :update,
+      "destroy"   => :delete,
+      "csvImport" => :csv_import,
+      "csvExport" => :csv_export,
+    }
+
+    unless @authenticatedUser.hasPermission?(resource, actionMap[action])
+      render json: { success: false, error: "Unauthorized to perform this action" }, status: :forbidden
+      return
     end
   end
 end
