@@ -3,10 +3,14 @@ class Api::SongsController < ApplicationController
   before_action :setSong, only: %i[show update destroy]
 
   def create
-    song = Song.new(songParams.merge(artist_id: @authenticatedUser.artist.id))
+    if @authenticatedUser.role == "super_admin"
+      song = Song.new(songParams.merge(artist_id: Artist.where(user_id: params[:artist_id]).pluck(:id).first))
+    else
+      song = Song.new(songParams.merge(artist_id: @authenticatedUser.artist.id))
+    end
 
     if !song.save
-      render json: { success: false, message: @song.errors }, status: :unprocessable_entity
+      render json: { success: false, message: song.errors }, status: :unprocessable_entity
       return 
     end
 
@@ -15,7 +19,7 @@ class Api::SongsController < ApplicationController
 
   def index
     currentPage = params.fetch(:page, 1)
-    perPage = params.fetch(:perPage, 5)
+    perPage = params.fetch(:perPage, 10)
 
     genreFilters = ["rnb", "country", "classic", "rock", "jazz"]
 
@@ -50,7 +54,11 @@ class Api::SongsController < ApplicationController
   end
 
   def update
-    @song.update!(songParams.merge(artist_id: @authenticatedUser.artist.id))
+    if @authenticatedUser.role == "super_admin"
+      @song.update!(songParams.merge(artist_id: Artist.where(user_id: params[:artist_id]).pluck(:id).first))
+    else
+      @song.update!(songParams.merge(artist_id: @authenticatedUser.artist.id))
+    end
 
     render json: { success: true, message: "Song updated successfully", data: @song }
   end
@@ -72,7 +80,7 @@ class Api::SongsController < ApplicationController
       if @authenticatedUser.role == "artist"
         @song = Song.where(artist_id: @authenticatedUser.artist.id).find_by(id: params[:id])
       else
-        @song = Song.where(artist_id: params[:artist_id]).find_by(id: params[:id])
+        @song = Song.where(artist_id: Artist.where(user_id: params[:artist_id]).pluck(:id)).find_by(id: params[:id])
       end
 
       unless @song

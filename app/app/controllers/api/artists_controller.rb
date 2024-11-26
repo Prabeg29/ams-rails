@@ -58,8 +58,8 @@ class Api::ArtistsController < ApplicationController
 
   def update
     ActiveRecord::Base.transaction do
-      @artist.update!(user_params.merge(role: "artist"))
-      @artist.artist.update!(artist_params)
+      @artist.update!(userParams.merge(role: "artist"))
+      @artist.artist.update!(artistParams)
 
       render json: { success: true, message: "Artist updated successfully", data: @artist }
     end

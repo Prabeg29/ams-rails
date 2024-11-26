@@ -4,27 +4,18 @@ class Api::AuthController < ApplicationController
 
   skip_before_action :authenticate, only: [:register, :login, :generateAccessToken]
 
-  def register
-    @user = User.new(registrationParams)
+  def create
+    ActiveRecord::Base.transaction do
+      user = User.create!(userParams)
 
-    if !@user.save
-      render json: { success: false, message: @user.errors }, status: :unprocessable_entity
-      return 
+      if user.role == "artist"
+        artist = Artist.create!(user_id: user.id)
+      end
+
+      render json: { success: true, message: "User created successfully", data: user }, status: :created
     end
-
-    accessToken = encode({ userId: @user.id, email: @user.email, role: @user.role, exp: ACCESS_TOKEN_EXPIRY.to_i })
-    refreshToken = encode({ userId: @user.id, email: @user.email, role: @user.role, exp: REFRESH_TOKEN_EXPIRY.to_i })
-
-    setTokensAsHttpOnlyCookies(accessToken, refreshToken)
-
-    render json: {
-      success: true,
-      message: "User registered successfully",
-      data: @user,
-      type: "Bearer",
-      accessToken: accessToken,
-      refreshToken: refreshToken
-    }
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { success: false, errors: e.record.errors.full_messages }, status: :unprocessable_entity
   end
 
   def login

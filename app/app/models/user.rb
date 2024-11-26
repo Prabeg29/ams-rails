@@ -25,8 +25,8 @@ class User < ApplicationRecord
   PERMISSIONS = {
     "super_admin": {
       "user": [:create, :read, :update, :delete],
-      "artist": [:read],
-      "song": [:read]
+      "artist": [:create, :read, :update, :delete, :csv_import, :csv_export],
+      "song": [:create, :read, :update, :delete]
     },
     "artist_manager": {
       "artist": [:create, :read, :update, :delete, :csv_import, :csv_export],
